@@ -1284,6 +1284,7 @@
     }
 
     function renderGroups() {
+        const previouslySelected = groupSelect.value;
         groupSelect.innerHTML = '<option value="">-- اختر المجموعة --</option>';
         groups.forEach(g => {
             const count = getGroupCount(g.name);
@@ -1298,6 +1299,9 @@
             if (full) opt.disabled = true;
             groupSelect.appendChild(opt);
         });
+        if (previouslySelected && groups.some(g => g.name === previouslySelected)) {
+            groupSelect.value = previouslySelected;
+        }
 
         groupTagsContainer.innerHTML = '';
         groups.forEach((g, idx) => {
