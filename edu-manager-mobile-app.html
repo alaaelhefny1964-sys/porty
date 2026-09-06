@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#6c5ce7">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>EduManager موبايل</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { font-family: 'Cairo', sans-serif; background: #fdf6ec; margin: 0; padding: 0; color: #2d2440; }
+#app { display: none; padding-bottom: 84px; min-height: 100vh; }
+#app.ready { display: block; }
+
+/* ===== شاشات الإعداد و PIN ===== */
+.gate { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.gate-card { background: #fff; border-radius: 20px; padding: 26px 22px; max-width: 360px; width: 100%; box-shadow: 0 10px 30px rgba(108,92,231,0.15); text-align: center; }
+.gate-card h1 { font-size: 19px; margin: 0 0 6px; color: #6c5ce7; }
+.gate-card p { font-size: 13px; color: #777; margin: 0 0 18px; line-height: 1.7; }
+.gate-card input { width: 100%; padding: 13px 14px; border-radius: 12px; border: 1px solid #e3d9c6; font-family: 'Cairo', sans-serif; font-size: 15px; margin-bottom: 12px; background: #fdf9f2; text-align: center; }
+.gate-card input[dir="ltr"] { text-align: left; }
+.gate-btn { width: 100%; padding: 14px; border: none; border-radius: 12px; background: linear-gradient(135deg,#6c5ce7,#a29bfe); color: #fff; font-family: 'Cairo', sans-serif; font-weight: 800; font-size: 15px; }
+.gate-error { color: #e17055; font-size: 12.5px; margin-top: 10px; min-height: 16px; }
+.gate-link { display: block; margin-top: 14px; font-size: 12px; color: #999; }
+
+/* ===== الهيدر ===== */
+header { background: linear-gradient(135deg,#6c5ce7,#a29bfe); color: #fff; padding: 14px 16px; position: sticky; top: 0; z-index: 20; box-shadow: 0 3px 10px rgba(108,92,231,0.25); }
+header .row { display: flex; align-items: center; justify-content: space-between; }
+header h1 { font-size: 16px; margin: 0; }
+.sync-pill { font-size: 10.5px; background: rgba(255,255,255,0.18); padding: 4px 10px; border-radius: 20px; display: flex; align-items: center; gap: 5px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: #00e676; animation: pulse 1.4s infinite; }
+.dot.busy { background: #ffeaa7; }
+.dot.err { background: #ff7675; animation: none; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+/* ===== تبويبات فرعية ===== */
+.subtabs { display: flex; gap: 6px; padding: 10px 12px 0; overflow-x: auto; }
+.subtab { flex-shrink: 0; padding: 8px 14px; border-radius: 20px; background: #fff; font-size: 12.5px; font-weight: 700; color: #6c5ce7; border: 1px solid #eee0c8; }
+.subtab.active { background: #6c5ce7; color: #fff; border-color: #6c5ce7; }
+
+.content { padding: 12px 14px; }
+.toolbar { display: flex; gap: 8px; margin-bottom: 10px; }
+.toolbar input, .toolbar select { flex: 1; padding: 11px 12px; border-radius: 12px; border: 1px solid #e3d9c6; background: #fff; font-family: 'Cairo', sans-serif; font-size: 13.5px; }
+
+.card { background: #fff; border-radius: 14px; padding: 13px 14px; margin-bottom: 9px; box-shadow: 0 2px 7px rgba(108,92,231,0.07); }
+.card-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.card-title { font-weight: 800; font-size: 14.5px; }
+.card-sub { font-size: 11.5px; color: #8a8a8a; margin-top: 3px; display: flex; flex-wrap: wrap; gap: 6px; }
+.badge { background: #f0edff; color: #6c5ce7; border-radius: 8px; padding: 2px 8px; font-size: 10.5px; font-weight: 700; }
+.badge.warn { background: #fff3d6; color: #b5860a; }
+.badge.danger { background: #ffe6e2; color: #c0392b; }
+.icon-btn { border: none; background: #f5f2ff; width: 34px; height: 34px; border-radius: 10px; font-size: 14px; }
+.icon-btn.danger { background: #fff0ee; }
+.actions-row { display: flex; gap: 6px; }
+
+.att-btns { display: flex; gap: 6px; margin-top: 8px; }
+.att-btn { flex: 1; padding: 9px 4px; border-radius: 10px; border: 1px solid #ddd; background: #fff; font-size: 11.5px; font-weight: 700; font-family: 'Cairo', sans-serif; color: #555; }
+.att-btn.present.sel { background: #00b894; color: #fff; border-color: #00b894; }
+.att-btn.absent.sel { background: #e17055; color: #fff; border-color: #e17055; }
+.att-btn.late.sel { background: #fdcb6e; color: #333; border-color: #fdcb6e; }
+.att-btn.makeup.sel { background: #a29bfe; color: #fff; border-color: #a29bfe; }
+
+.fab { position: fixed; bottom: 78px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg,#6c5ce7,#a29bfe); color: #fff; border: none; padding: 13px 26px; border-radius: 30px; font-weight: 800; font-size: 13.5px; box-shadow: 0 6px 16px rgba(108,92,231,0.4); z-index: 15; }
+
+.empty { text-align: center; opacity: 0.5; padding: 40px 20px; font-size: 13px; }
+
+/* ===== تبويبات سفلية ===== */
+.tabbar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #eee; display: flex; padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); z-index: 20; }
+.tabbar .tab { flex: 1; text-align: center; padding: 8px 2px; border-radius: 10px; font-size: 10.5px; color: #999; font-weight: 700; }
+.tabbar .tab.active { color: #6c5ce7; background: #f5f2ff; }
+.tabbar .tab .ic { font-size: 18px; display: block; margin-bottom: 2px; }
+
+/* ===== نافذة منبثقة ===== */
+.sheet-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; align-items: flex-end; z-index: 100; }
+.sheet-overlay.open { display: flex; }
+.sheet { background: #fff; width: 100%; border-radius: 20px 20px 0 0; padding: 20px; max-height: 88vh; overflow-y: auto; }
+.sheet h3 { margin: 0 0 14px; text-align: center; font-size: 16px; }
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 12px; margin-bottom: 5px; color: #6a6a6a; font-weight: 700; }
+.field input, .field select { width: 100%; padding: 11px 12px; border-radius: 10px; border: 1px solid #e3d9c6; font-family: 'Cairo', sans-serif; font-size: 14px; background: #fdf9f2; }
+.sheet-actions { display: flex; gap: 10px; margin-top: 14px; }
+.btn { flex: 1; padding: 13px; border-radius: 12px; border: none; font-family: 'Cairo', sans-serif; font-weight: 700; font-size: 13.5px; }
+.btn-primary { background: #6c5ce7; color: #fff; }
+.btn-secondary { background: #f0edee; color: #555; }
+.btn-danger { background: #ffe6e2; color: #c0392b; }
+
+.toast { position: fixed; top: 62px; left: 50%; transform: translateX(-50%); background: #222; color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 12.5px; z-index: 200; opacity: 0; transition: opacity 0.3s; pointer-events: none; max-width: 90%; text-align: center; }
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="gateScreen" class="gate">
+    <div class="gate-card">
+        <h1>📱 EduManager موبايل</h1>
+        <p id="gateText">من فضلك الصق رابط قاعدة البيانات السحابية (نفس الرابط الموجود في تبويب "المزامنة السحابية" ببرنامج الكمبيوتر).</p>
+        <input type="text" id="gateUrlInput" dir="ltr" placeholder="https://your-project.firebaseio.com/eduManagerCloudData.json">
+        <button class="gate-btn" onclick="connectToCloud()">🔗 اتصال</button>
+        <div class="gate-error" id="gateError"></div>
+    </div>
+</div>
+
+<div id="pinScreen" class="gate" style="display:none;">
+    <div class="gate-card">
+        <h1>🔒 رمز الدخول</h1>
+        <p>اكتب رمز PIN المحدد من برنامج الكمبيوتر لفتح بيانات الطلاب.</p>
+        <input type="password" id="pinInput" inputmode="numeric" placeholder="••••" style="letter-spacing:6px; font-size:20px;">
+        <button class="gate-btn" onclick="checkPin()">دخول</button>
+        <div class="gate-error" id="pinError"></div>
+        <a href="#" class="gate-link" onclick="resetConnection(); return false;">تغيير رابط الاتصال</a>
+    </div>
+</div>
+
+<div id="app">
+    <header>
+        <div class="row">
+            <h1 id="screenTitle">الطلاب</h1>
+            <div class="sync-pill"><span class="dot" id="syncDot"></span><span id="syncLabel">متصل</span></div>
+        </div>
+    </header>
+
+    <div id="subtabsBar" class="subtabs" style="display:none;"></div>
+    <div class="content" id="content"></div>
+    <button class="fab" id="fabBtn" style="display:none;"></button>
+
+    <div class="tabbar">
+        <div class="tab active" data-tab="students" onclick="switchTab('students')"><span class="ic">👥</span>الطلاب</div>
+        <div class="tab" data-tab="attendance" onclick="switchTab('attendance')"><span class="ic">✅</span>الحضور</div>
+        <div class="tab" data-tab="treasury" onclick="switchTab('treasury')"><span class="ic">💰</span>الخزينة</div>
+    </div>
+</div>
+
+<div class="sheet-overlay" id="studentSheet">
+    <div class="sheet">
+        <h3 id="studentSheetTitle">إضافة طالب</h3>
+        <input type="hidden" id="editStudentId">
+        <div class="field"><label>اسم الطالب</label><input type="text" id="fName" placeholder="اسم الطالب بالكامل"></div>
+        <div class="field"><label>رقم هاتف الطالب</label><input type="tel" id="fPhone" dir="ltr" placeholder="01xxxxxxxxx"></div>
+        <div class="field"><label>رقم هاتف ولي الأمر</label><input type="tel" id="fParentPhone" dir="ltr" placeholder="01xxxxxxxxx"></div>
+        <div class="field"><label>المجموعة</label><select id="fGroup"></select></div>
+        <div class="field"><label>نظام الدفع</label>
+            <select id="fPaymentType"><option value="per_session">لكل حصة</option><option value="monthly">شهري</option></select>
+        </div>
+        <div class="sheet-actions">
+            <button class="btn btn-secondary" onclick="closeSheet('studentSheet')">إلغاء</button>
+            <button class="btn btn-primary" onclick="saveStudent()">💾 حفظ</button>
+        </div>
+    </div>
+</div>
+
+<div class="sheet-overlay" id="paymentSheet">
+    <div class="sheet">
+        <h3>➕ تسجيل دفعة</h3>
+        <div class="field"><label>الطالب</label><select id="pStudent"></select></div>
+        <div class="field"><label>المبلغ (ج.م)</label><input type="number" id="pAmount" placeholder="0" inputmode="decimal"></div>
+        <div class="field"><label>نوع الدفعة</label>
+            <select id="pType"><option value="session">حصة</option><option value="monthly">شهري</option><option value="book">ملزمة</option></select>
+        </div>
+        <div class="field"><label>ملاحظات (اختياري)</label><input type="text" id="pNotes" placeholder="مثال: دفعة شهر سبتمبر"></div>
+        <div class="sheet-actions">
+            <button class="btn btn-secondary" onclick="closeSheet('paymentSheet')">إلغاء</button>
+            <button class="btn btn-primary" onclick="savePayment()">💾 تسجيل</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const LOCAL_URL_KEY = 'eduManagerMobile_firebaseUrl';
+const LOCAL_PIN_KEY = 'eduManagerMobile_pinVerified';
+let FIREBASE_URL = localStorage.getItem(LOCAL_URL_KEY) || '';
+let cloudData = null;
+let currentTab = 'students';
+let attendanceGroupId = '';
+let attendanceDate = new Date().toISOString().slice(0, 10);
+let syncBusy = false;
+
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2000); }
+function today() { return new Date().toISOString().slice(0, 10); }
+
+/* ===== الاتصال وبوابة الدخول ===== */
+function resetConnection() {
+    localStorage.removeItem(LOCAL_URL_KEY);
+    localStorage.removeItem(LOCAL_PIN_KEY);
+    location.reload();
+}
+async function connectToCloud() {
+    const url = document.getElementById('gateUrlInput').value.trim();
+    const errEl = document.getElementById('gateError');
+    if (!/^https?:\/\/.+\.json$/.test(url)) { errEl.textContent = 'الرابط غير صحيح، تأكد إنه بنفس الشكل المنسوخ من البرنامج'; return; }
+    errEl.textContent = 'جاري الاتصال...';
+    try {
+        const res = await fetch(url, { cache: 'no-cache' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const remote = await res.json();
+        if (!remote) { errEl.textContent = 'الرابط شغال لكن لا توجد بيانات بعد — فعّل المزامنة من الكمبيوتر أولاً واحفظ أي تعديل بسيط.'; return; }
+        FIREBASE_URL = url;
+        localStorage.setItem(LOCAL_URL_KEY, url);
+        cloudData = remote;
+        proceedAfterConnect();
+    } catch (err) {
+        errEl.textContent = 'تعذر الاتصال: ' + err.message;
+    }
+}
+function proceedAfterConnect() {
+    const pin = cloudData.settings?.mobilePin || '';
+    if (pin && localStorage.getItem(LOCAL_PIN_KEY) !== pin) {
+        document.getElementById('gateScreen').style.display = 'none';
+        document.getElementById('pinScreen').style.display = 'flex';
+    } else {
+        launchApp();
+    }
+}
+function checkPin() {
+    const val = document.getElementById('pinInput').value.trim();
+    const pin = cloudData.settings?.mobilePin || '';
+    if (val === pin) {
+        localStorage.setItem(LOCAL_PIN_KEY, pin);
+        launchApp();
+    } else {
+        document.getElementById('pinError').textContent = 'الرمز غير صحيح';
+    }
+}
+function launchApp() {
+    document.getElementById('gateScreen').style.display = 'none';
+    document.getElementById('pinScreen').style.display = 'none';
+    document.getElementById('app').classList.add('ready');
+    setSyncStatus('ok', 'متصل');
+    switchTab('students');
+    setInterval(() => pullLatest(true), 8000);
+}
+if (FIREBASE_URL) {
+    fetch(FIREBASE_URL, { cache: 'no-cache' }).then(r => r.json()).then(remote => {
+        if (remote) { cloudData = remote; proceedAfterConnect(); }
+        else { document.getElementById('gateUrlInput').value = FIREBASE_URL; }
+    }).catch(() => { document.getElementById('gateUrlInput').value = FIREBASE_URL; });
+}
+
+/* ===== المزامنة ===== */
+function setSyncStatus(state, label) {
+    const dot = document.getElementById('syncDot');
+    const lbl = document.getElementById('syncLabel');
+    if (!dot) return;
+    dot.className = 'dot' + (state === 'busy' ? ' busy' : state === 'err' ? ' err' : '');
+    lbl.textContent = label;
+}
+async function pullLatest(silent) {
+    if (!FIREBASE_URL || syncBusy) return;
+    try {
+        if (!silent) setSyncStatus('busy', 'جاري التحديث...');
+        const res = await fetch(FIREBASE_URL, { cache: 'no-cache' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const remote = await res.json();
+        if (remote && (!cloudData?.updatedAt || remote.updatedAt > cloudData.updatedAt)) {
+            cloudData = remote;
+            renderCurrentTab();
+            if (!silent) showToast('تم التحديث من السحابة');
+        }
+        setSyncStatus('ok', 'متصل');
+    } catch (err) {
+        setSyncStatus('err', 'لا يوجد اتصال');
+    }
+}
+async function pushChange(mutateFn) {
+    if (!FIREBASE_URL) return;
+    syncBusy = true;
+    setSyncStatus('busy', 'جاري الحفظ...');
+    try {
+        const res = await fetch(FIREBASE_URL, { cache: 'no-cache' });
+        const latest = res.ok ? await res.json() : cloudData;
+        cloudData = latest && latest.students ? latest : cloudData;
+        mutateFn(cloudData);
+        cloudData.updatedAt = new Date().toISOString();
+        cloudData.deviceSyncId = 'mobile-' + (localStorage.getItem('mobileDeviceId') || (() => { const id = 'm' + Date.now(); localStorage.setItem('mobileDeviceId', id); return id; })());
+        const putRes = await fetch(FIREBASE_URL, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cloudData) });
+        if (!putRes.ok) throw new Error('HTTP ' + putRes.status);
+        setSyncStatus('ok', 'متصل');
+        renderCurrentTab();
+    } catch (err) {
+        setSyncStatus('err', 'تعذر الحفظ');
+        showToast('⚠️ تعذر الحفظ، تأكد من الإنترنت وحاول تاني');
+    } finally {
+        syncBusy = false;
+    }
+}
+
+/* ===== التنقل ===== */
+function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tabbar .tab').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
+    document.getElementById('screenTitle').textContent = tab === 'students' ? 'الطلاب' : tab === 'attendance' ? 'الحضور والغياب' : 'الخزينة';
+    const fab = document.getElementById('fabBtn');
+    if (tab === 'students') { fab.style.display = 'block'; fab.textContent = '➕ إضافة طالب'; fab.onclick = () => openStudentSheet(); }
+    else if (tab === 'treasury') { fab.style.display = 'block'; fab.textContent = '➕ تسجيل دفعة'; fab.onclick = () => openPaymentSheet(); }
+    else fab.style.display = 'none';
+    renderCurrentTab();
+}
+function renderCurrentTab() {
+    if (currentTab === 'students') renderStudentsTab();
+    else if (currentTab === 'attendance') renderAttendanceTab();
+    else if (currentTab === 'treasury') renderTreasuryTab();
+}
+
+/* ===== مساعدات بيانات ===== */
+function activeStudents() { return (cloudData.students || []).filter(s => s.status !== 'deleted'); }
+function groupName(groupId) { return (cloudData.groups || []).find(g => String(g.id) === String(groupId))?.name || '-'; }
+function fillGroupSelect(selectEl, includeAll) {
+    selectEl.innerHTML = (includeAll ? '<option value="">كل المجموعات</option>' : '<option value="">اختر المجموعة</option>') +
+        (cloudData.groups || []).map(g => `<option value="${g.id}">${esc(g.name)}</option>`).join('');
+}
+
+/* ===== الطلاب ===== */
+function renderStudentsTab() {
+    document.getElementById('subtabsBar').style.display = 'none';
+    const content = document.getElementById('content');
+    const students = activeStudents();
+    content.innerHTML = `
+        <div class="toolbar">
+            <input type="text" id="studentSearch" placeholder="🔍 ابحث بالاسم أو الهاتف..." oninput="renderStudentsTab()">
+            <select id="studentGroupFilter" onchange="renderStudentsTab()"></select>
+        </div>
+        <div id="studentsList"></div>
+    `;
+    fillGroupSelect(document.getElementById('studentGroupFilter'), true);
+    const q = (document.getElementById('studentSearch')?.value || '').toLowerCase();
+    const groupFilter = document.getElementById('studentGroupFilter')?.value || '';
+    let filtered = students.filter(s => (!q || s.name?.toLowerCase().includes(q) || (s.phone || '').includes(q)) && (!groupFilter || String(s.groupId) === String(groupFilter)));
+    const list = document.getElementById('studentsList');
+    if (!filtered.length) { list.innerHTML = '<div class="empty">لا يوجد طلاب مطابقون</div>'; return; }
+    list.innerHTML = filtered.map(s => `
+        <div class="card">
+            <div class="card-row">
+                <div>
+                    <div class="card-title">${esc(s.name)}</div>
+                    <div class="card-sub">
+                        <span class="badge">${esc(groupName(s.groupId))}</span>
+                        <span class="badge ${s.status === 'suspended' ? 'warn' : ''}">${s.status === 'active' ? 'نشط' : s.status === 'suspended' ? 'موقوف' : s.status}</span>
+                        <span>📞 ${esc(s.phone || '-')}</span>
+                    </div>
+                </div>
+                <div class="actions-row">
+                    <button class="icon-btn" onclick="openStudentSheet('${s.id}')">✏️</button>
+                    <button class="icon-btn danger" onclick="toggleStudentStatus('${s.id}')">${s.status === 'active' ? '⏸️' : '▶️'}</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+function openStudentSheet(id) {
+    const sheet = document.getElementById('studentSheet');
+    fillGroupSelect(document.getElementById('fGroup'), false);
+    if (id) {
+        const s = activeStudents().find(x => String(x.id) === String(id));
+        document.getElementById('studentSheetTitle').textContent = 'تعديل بيانات الطالب';
+        document.getElementById('editStudentId').value = id;
+        document.getElementById('fName').value = s.name || '';
+        document.getElementById('fPhone').value = s.phone || '';
+        document.getElementById('fParentPhone').value = s.parentPhone || '';
+        document.getElementById('fGroup').value = s.groupId || '';
+        document.getElementById('fPaymentType').value = s.paymentType || 'per_session';
+    } else {
+        document.getElementById('studentSheetTitle').textContent = 'إضافة طالب جديد';
+        document.getElementById('editStudentId').value = '';
+        ['fName', 'fPhone', 'fParentPhone'].forEach(id2 => document.getElementById(id2).value = '');
+        document.getElementById('fPaymentType').value = 'per_session';
+    }
+    sheet.classList.add('open');
+}
+function closeSheet(id) { document.getElementById(id).classList.remove('open'); }
+function saveStudent() {
+    const name = document.getElementById('fName').value.trim();
+    const groupId = document.getElementById('fGroup').value;
+    if (!name) return showToast('اكتب اسم الطالب');
+    if (!groupId) return showToast('اختر المجموعة');
+    const phone = document.getElementById('fPhone').value.trim();
+    const parentPhone = document.getElementById('fParentPhone').value.trim();
+    const paymentType = document.getElementById('fPaymentType').value;
+    const editId = document.getElementById('editStudentId').value;
+    pushChange(dataObj => {
+        if (!dataObj.students) dataObj.students = [];
+        if (editId) {
+            const s = dataObj.students.find(x => String(x.id) === String(editId));
+            if (s) { s.name = name; s.phone = phone; s.parentPhone = parentPhone; s.groupId = isNaN(groupId) ? groupId : Number(groupId); s.paymentType = paymentType; }
+        } else {
+            const code = 'EDU' + Date.now().toString().slice(-7);
+            dataObj.students.push({ id: Date.now(), name, phone, parent: '', parentPhone, groupId: isNaN(groupId) ? groupId : Number(groupId), paymentType, status: 'active', discountType: 'none', discountValue: 0, bookOrder: 'no', bookPrice: 0, bookPaid: 'no', code, barcode: code, createdAt: new Date().toISOString() });
+        }
+    });
+    closeSheet('studentSheet');
+    showToast('تم الحفظ ✅');
+}
+function toggleStudentStatus(id) {
+    pushChange(dataObj => {
+        const s = dataObj.students.find(x => String(x.id) === String(id));
+        if (s) s.status = s.status === 'active' ? 'suspended' : 'active';
+    });
+}
+
+/* ===== الحضور ===== */
+function renderAttendanceTab() {
+    const bar = document.getElementById('subtabsBar');
+    bar.style.display = 'flex';
+    bar.innerHTML = `
+        <select id="attGroupSelect" class="subtab" style="flex:1; border:none;" onchange="onAttendanceGroupChange()"></select>
+        <input type="date" id="attDateInput" class="subtab" style="flex:1; border:none;" value="${attendanceDate}" onchange="onAttendanceDateChange()">
+    `;
+    fillGroupSelect(document.getElementById('attGroupSelect'), false);
+    if (attendanceGroupId) document.getElementById('attGroupSelect').value = attendanceGroupId;
+    const content = document.getElementById('content');
+    if (!attendanceGroupId) { content.innerHTML = '<div class="empty">اختر مجموعة والتاريخ من الأعلى لتسجيل الحضور</div>'; return; }
+    const students = activeStudents().filter(s => String(s.groupId) === String(attendanceGroupId));
+    const record = (cloudData.attendance || []).find(a => String(a.groupId) === String(attendanceGroupId) && a.date === attendanceDate);
+    const statusOf = studentId => record?.records?.find(r => String(r.studentId) === String(studentId))?.status || '';
+    if (!students.length) { content.innerHTML = '<div class="empty">لا يوجد طلاب نشطون في هذه المجموعة</div>'; return; }
+    content.innerHTML = students.map(s => { const cur = statusOf(s.id); return `
+        <div class="card">
+            <div class="card-title">${esc(s.name)}</div>
+            <div class="att-btns">
+                <button class="att-btn present ${cur === 'present' ? 'sel' : ''}" onclick="setAttendance('${s.id}','present')">حاضر</button>
+                <button class="att-btn absent ${cur === 'absent' ? 'sel' : ''}" onclick="setAttendance('${s.id}','absent')">غائب</button>
+                <button class="att-btn late ${cur === 'late' ? 'sel' : ''}" onclick="setAttendance('${s.id}','late')">متأخر</button>
+                <button class="att-btn makeup ${cur === 'makeup' ? 'sel' : ''}" onclick="setAttendance('${s.id}','makeup')">تعويض</button>
+            </div>
+        </div>`; }).join('');
+}
+function onAttendanceGroupChange() { attendanceGroupId = document.getElementById('attGroupSelect').value; renderAttendanceTab(); }
+function onAttendanceDateChange() { attendanceDate = document.getElementById('attDateInput').value; renderAttendanceTab(); }
+function setAttendance(studentId, status) {
+    pushChange(dataObj => {
+        if (!dataObj.attendance) dataObj.attendance = [];
+        let record = dataObj.attendance.find(a => String(a.groupId) === String(attendanceGroupId) && a.date === attendanceDate);
+        if (!record) { record = { groupId: isNaN(attendanceGroupId) ? attendanceGroupId : Number(attendanceGroupId), date: attendanceDate, records: [] }; dataObj.attendance.push(record); }
+        const existing = record.records.find(r => String(r.studentId) === String(studentId));
+        if (existing) existing.status = status;
+        else record.records.push({ studentId: isNaN(studentId) ? studentId : Number(studentId), status });
+    });
+}
+
+/* ===== الخزينة ===== */
+function renderTreasuryTab() {
+    document.getElementById('subtabsBar').style.display = 'none';
+    const payments = (cloudData.payments || []).slice().sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 40);
+    const totalToday = (cloudData.payments || []).filter(p => p.date === today()).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+    const content = document.getElementById('content');
+    const typeLabel = t => t === 'book' ? '📚 ملزمة' : t === 'monthly' ? '📅 شهري' : '📝 حصة';
+    content.innerHTML = `
+        <div class="card" style="text-align:center; background:linear-gradient(135deg,#00b894,#55efc4); color:#fff;">
+            <div style="font-size:22px; font-weight:800;">${totalToday.toLocaleString()} ج.م</div>
+            <div style="font-size:11.5px; opacity:0.9;">إجمالي اليوم</div>
+        </div>
+        <div id="paymentsList"></div>
+    `;
+    const list = document.getElementById('paymentsList');
+    if (!payments.length) { list.innerHTML = '<div class="empty">لا توجد مدفوعات مسجلة</div>'; return; }
+    list.innerHTML = payments.map(p => {
+        const student = (cloudData.students || []).find(s => String(s.id) === String(p.studentId));
+        return `<div class="card">
+            <div class="card-row">
+                <div><div class="card-title">${esc(student?.name || 'طالب غير معروف')}</div>
+                <div class="card-sub"><span class="badge">${typeLabel(p.type)}</span><span>${esc(p.date || '-')}</span></div></div>
+                <div style="font-weight:800; color:#00b894;">${p.amount} ج.م</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+function openPaymentSheet() {
+    const select = document.getElementById('pStudent');
+    select.innerHTML = activeStudents().map(s => `<option value="${s.id}">${esc(s.name)} — ${esc(groupName(s.groupId))}</option>`).join('');
+    document.getElementById('pAmount').value = '';
+    document.getElementById('pNotes').value = '';
+    document.getElementById('pType').value = 'session';
+    document.getElementById('paymentSheet').classList.add('open');
+}
+function savePayment() {
+    const studentId = document.getElementById('pStudent').value;
+    const amount = Number(document.getElementById('pAmount').value);
+    const type = document.getElementById('pType').value;
+    const notes = document.getElementById('pNotes').value.trim();
+    if (!studentId) return showToast('اختر الطالب');
+    if (!amount || amount <= 0) return showToast('اكتب مبلغًا صحيحًا');
+    pushChange(dataObj => {
+        if (!dataObj.payments) dataObj.payments = [];
+        dataObj.payments.push({ id: Date.now(), studentId: isNaN(studentId) ? studentId : Number(studentId), amount, date: today(), notes, type, status: 'paid', source: 'mobile-app' });
+    });
+    closeSheet('paymentSheet');
+    showToast('تم تسجيل الدفعة ✅');
+}
+</script>
+</body>
+</html>
