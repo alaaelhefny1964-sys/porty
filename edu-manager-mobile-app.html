@@ -69,7 +69,7 @@ header h1 { font-size: 16px; margin: 0; }
 
 /* ===== تبويبات سفلية ===== */
 .tabbar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #eee; display: flex; padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); z-index: 20; }
-.tabbar .tab { flex: 1; text-align: center; padding: 8px 2px; border-radius: 10px; font-size: 10.5px; color: #999; font-weight: 700; }
+.tabbar .tab { flex: 1; text-align: center; padding: 7px 1px; border-radius: 10px; font-size: 9.5px; color: #999; font-weight: 700; }
 .tabbar .tab.active { color: #6c5ce7; background: #f5f2ff; }
 .tabbar .tab .ic { font-size: 18px; display: block; margin-bottom: 2px; }
 
@@ -128,7 +128,9 @@ header h1 { font-size: 16px; margin: 0; }
 
     <div class="tabbar">
         <div class="tab active" data-tab="students" onclick="switchTab('students')"><span class="ic">👥</span>الطلاب</div>
+        <div class="tab" data-tab="groups" onclick="switchTab('groups')"><span class="ic">🏫</span>المجموعات</div>
         <div class="tab" data-tab="attendance" onclick="switchTab('attendance')"><span class="ic">✅</span>الحضور</div>
+        <div class="tab" data-tab="activities" onclick="switchTab('activities')"><span class="ic">📝</span>الدرجات</div>
         <div class="tab" data-tab="treasury" onclick="switchTab('treasury')"><span class="ic">💰</span>الخزينة</div>
     </div>
 </div>
@@ -167,6 +169,61 @@ header h1 { font-size: 16px; margin: 0; }
     </div>
 </div>
 
+<div class="sheet-overlay" id="activitySheet">
+    <div class="sheet">
+        <h3>➕ إضافة نشاط جديد</h3>
+        <div class="field"><label>نوع النشاط</label>
+            <select id="actKind" onchange="onActKindChange()"><option value="exam_class">امتحان الحصة</option><option value="exam_collective">امتحان شهري / تجميعي</option><option value="homework">واجب</option></select>
+        </div>
+        <div class="field"><label>اسم النشاط</label><input type="text" id="actName" placeholder="مثال: امتحان الوحدة الأولى"></div>
+        <div class="field"><label>المجموعة</label><select id="actGroup"></select></div>
+        <div class="field"><label>التاريخ</label><input type="date" id="actDate"></div>
+        <div class="field" id="actTotalField"><label>الدرجة الكلية</label><input type="number" id="actTotal" placeholder="مثال: 20" inputmode="numeric"></div>
+        <div class="field" id="actDescField" style="display:none;"><label>وصف الواجب (اختياري)</label><input type="text" id="actDesc" placeholder="تفاصيل الواجب"></div>
+        <div class="sheet-actions">
+            <button class="btn btn-secondary" onclick="closeSheet('activitySheet')">إلغاء</button>
+            <button class="btn btn-primary" onclick="saveActivity()">💾 حفظ</button>
+        </div>
+    </div>
+</div>
+
+<div class="sheet-overlay" id="gradesSheet">
+    <div class="sheet">
+        <h3 id="gradesSheetTitle">تسجيل الدرجات</h3>
+        <div id="gradesList" style="max-height:60vh; overflow-y:auto;"></div>
+        <div class="sheet-actions">
+            <button class="btn btn-secondary" onclick="closeSheet('gradesSheet')">إغلاق</button>
+        </div>
+    </div>
+</div>
+
+<div class="sheet-overlay" id="groupSheet">
+    <div class="sheet">
+        <h3 id="groupSheetTitle">إضافة مجموعة</h3>
+        <input type="hidden" id="editGroupId">
+        <div class="field"><label>اسم المجموعة</label><input type="text" id="gName" placeholder="مثال: الصف الثالث الثانوي - السبت والثلاثاء"></div>
+        <div class="field"><label>المادة</label><input type="text" id="gSubject" placeholder="مثال: رياضيات"></div>
+        <div class="field"><label>موعد المجموعة (اختياري)</label><input type="text" id="gSchedule" placeholder="مثال: السبت والثلاثاء الساعة 5 م"></div>
+        <div class="field"><label>سعر الحصة (ج.م)</label><input type="number" id="gSessionPrice" inputmode="decimal" placeholder="0"></div>
+        <div class="field"><label>الاشتراك الشهري (ج.م)</label><input type="number" id="gMonthlyPrice" inputmode="decimal" placeholder="0"></div>
+        <div class="field"><label>سعر الملزمة (ج.م)</label><input type="number" id="gBookPrice" inputmode="decimal" placeholder="0"></div>
+        <div class="sheet-actions">
+            <button class="btn btn-secondary" onclick="closeSheet('groupSheet')">إلغاء</button>
+            <button class="btn btn-primary" onclick="saveGroup()">💾 حفظ</button>
+        </div>
+    </div>
+</div>
+
+<div class="sheet-overlay" id="scheduleSheet">
+    <div class="sheet">
+        <h3>📅 الجدول الأسبوعي للمجموعات</h3>
+        <div id="scheduleList" style="max-height:65vh; overflow-y:auto;"></div>
+        <div class="sheet-actions">
+            <button class="btn btn-secondary" onclick="closeSheet('scheduleSheet')">إغلاق</button>
+        </div>
+    </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -177,6 +234,8 @@ let cloudData = null;
 let currentTab = 'students';
 let attendanceGroupId = '';
 let attendanceDate = new Date().toISOString().slice(0, 10);
+let activitiesGroupId = '';
+let activitiesKindFilter = 'exam';
 let syncBusy = false;
 
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -293,17 +352,21 @@ async function pushChange(mutateFn) {
 function switchTab(tab) {
     currentTab = tab;
     document.querySelectorAll('.tabbar .tab').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
-    document.getElementById('screenTitle').textContent = tab === 'students' ? 'الطلاب' : tab === 'attendance' ? 'الحضور والغياب' : 'الخزينة';
+    document.getElementById('screenTitle').textContent = tab === 'students' ? 'الطلاب' : tab === 'groups' ? 'المجموعات' : tab === 'attendance' ? 'الحضور والغياب' : tab === 'activities' ? 'الامتحانات والواجبات' : 'الخزينة';
     const fab = document.getElementById('fabBtn');
     if (tab === 'students') { fab.style.display = 'block'; fab.textContent = '➕ إضافة طالب'; fab.onclick = () => openStudentSheet(); }
+    else if (tab === 'groups') { fab.style.display = 'block'; fab.textContent = '➕ إضافة مجموعة'; fab.onclick = () => openGroupSheet(); }
     else if (tab === 'treasury') { fab.style.display = 'block'; fab.textContent = '➕ تسجيل دفعة'; fab.onclick = () => openPaymentSheet(); }
+    else if (tab === 'activities') { fab.style.display = 'block'; fab.textContent = '➕ إضافة نشاط'; fab.onclick = () => openActivitySheet(); }
     else fab.style.display = 'none';
     renderCurrentTab();
 }
 function renderCurrentTab() {
     if (currentTab === 'students') renderStudentsTab();
+    else if (currentTab === 'groups') renderGroupsTab();
     else if (currentTab === 'attendance') renderAttendanceTab();
     else if (currentTab === 'treasury') renderTreasuryTab();
+    else if (currentTab === 'activities') renderActivitiesTab();
 }
 
 /* ===== مساعدات بيانات ===== */
@@ -312,6 +375,188 @@ function groupName(groupId) { return (cloudData.groups || []).find(g => String(g
 function fillGroupSelect(selectEl, includeAll) {
     selectEl.innerHTML = (includeAll ? '<option value="">كل المجموعات</option>' : '<option value="">اختر المجموعة</option>') +
         (cloudData.groups || []).map(g => `<option value="${g.id}">${esc(g.name)}</option>`).join('');
+}
+
+/* ===== الجدول الأسبوعي ===== */
+const WEEK_DAYS = ['السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+function openWeeklySchedule() {
+    renderWeeklySchedule();
+    document.getElementById('scheduleSheet').classList.add('open');
+}
+function renderWeeklySchedule() {
+    const schedule = cloudData.weeklySchedule || {};
+    const list = document.getElementById('scheduleList');
+    list.innerHTML = WEEK_DAYS.map(day => {
+        const entries = schedule[day] || [];
+        const rows = entries.length ? entries.map(e => `<div class="card-row" style="padding:4px 0;"><span>${esc(groupName(e.groupId))} — ${esc(e.time || '')}</span><button class="icon-btn danger" style="width:26px;height:26px;font-size:11px;" onclick="deleteScheduleEntry('${day}','${e.id}')">✕</button></div>`).join('')
+            : '<div style="font-size:12px; opacity:.5; text-align:center; padding:4px 0;">لا يوجد</div>';
+        return `<div class="card">
+            <div class="card-title" style="margin-bottom:6px;">${day}</div>
+            ${rows}
+            <div style="display:flex; gap:6px; margin-top:8px;">
+                <select id="schedGroup_${day}" style="flex:1; padding:8px; border-radius:8px; border:1px solid #e3d9c6; font-size:12px;"></select>
+                <input type="text" id="schedTime_${day}" placeholder="الوقت" style="width:80px; padding:8px; border-radius:8px; border:1px solid #e3d9c6; font-size:12px;">
+                <button class="icon-btn" onclick="addScheduleEntry('${day}')">➕</button>
+            </div>
+        </div>`;
+    }).join('');
+    WEEK_DAYS.forEach(day => fillGroupSelect(document.getElementById('schedGroup_' + day), false));
+}
+async function addScheduleEntry(day) {
+    const groupId = document.getElementById('schedGroup_' + day).value;
+    const time = document.getElementById('schedTime_' + day).value.trim();
+    if (!groupId) return showToast('اختر المجموعة');
+    if (!time) return showToast('اكتب الوقت');
+    await pushChange(dataObj => {
+        if (!dataObj.weeklySchedule) dataObj.weeklySchedule = {};
+        if (!dataObj.weeklySchedule[day]) dataObj.weeklySchedule[day] = [];
+        dataObj.weeklySchedule[day].push({ id: Date.now(), groupId: isNaN(groupId) ? groupId : Number(groupId), time });
+    });
+    renderWeeklySchedule();
+    showToast('تمت الإضافة ✅');
+}
+async function deleteScheduleEntry(day, entryId) {
+    await pushChange(dataObj => {
+        if (dataObj.weeklySchedule && dataObj.weeklySchedule[day]) {
+            dataObj.weeklySchedule[day] = dataObj.weeklySchedule[day].filter(e => String(e.id) !== String(entryId));
+        }
+    });
+    renderWeeklySchedule();
+}
+
+/* ===== المجموعات ===== */
+function renderGroupsTab() {
+    document.getElementById('subtabsBar').style.display = 'flex';
+    document.getElementById('subtabsBar').innerHTML = `<button class="subtab active" style="flex:1;" onclick="openWeeklySchedule()">📅 عرض الجدول الأسبوعي للمجموعات</button>`;
+    const content = document.getElementById('content');
+    const groups = cloudData.groups || [];
+    if (!groups.length) { content.innerHTML = '<div class="empty">لا توجد مجموعات بعد — اضغط "➕ إضافة مجموعة"</div>'; return; }
+    content.innerHTML = groups.map(g => {
+        const count = activeStudents().filter(s => String(s.groupId) === String(g.id)).length;
+        return `<div class="card">
+            <div class="card-row">
+                <div>
+                    <div class="card-title">${esc(g.name)}</div>
+                    <div class="card-sub">
+                        ${g.subject ? `<span class="badge">${esc(g.subject)}</span>` : ''}
+                        <span>👥 ${count} طالب</span>
+                        ${g.sessionPrice ? `<span>حصة: ${g.sessionPrice} ج.م</span>` : ''}
+                        ${g.monthlyPrice ? `<span>شهري: ${g.monthlyPrice} ج.م</span>` : ''}
+                    </div>
+                    ${g.schedule ? `<div class="card-sub">🕒 ${esc(g.schedule)}</div>` : ''}
+                </div>
+                <button class="icon-btn" onclick="printGroupReport('${g.id}')">🖨️</button>
+                <button class="icon-btn" onclick="openGroupSheet('${g.id}')">✏️</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+function openGroupSheet(id) {
+    if (id) {
+        const g = (cloudData.groups || []).find(x => String(x.id) === String(id));
+        document.getElementById('groupSheetTitle').textContent = 'تعديل المجموعة';
+        document.getElementById('editGroupId').value = id;
+        document.getElementById('gName').value = g.name || '';
+        document.getElementById('gSubject').value = g.subject || '';
+        document.getElementById('gSchedule').value = g.schedule || '';
+        document.getElementById('gSessionPrice').value = g.sessionPrice || '';
+        document.getElementById('gMonthlyPrice').value = g.monthlyPrice || '';
+        document.getElementById('gBookPrice').value = g.bookPrice || '';
+    } else {
+        document.getElementById('groupSheetTitle').textContent = 'إضافة مجموعة جديدة';
+        document.getElementById('editGroupId').value = '';
+        ['gName', 'gSubject', 'gSchedule', 'gSessionPrice', 'gMonthlyPrice', 'gBookPrice'].forEach(id2 => document.getElementById(id2).value = '');
+    }
+    document.getElementById('groupSheet').classList.add('open');
+}
+function saveGroup() {
+    const name = document.getElementById('gName').value.trim();
+    if (!name) return showToast('اكتب اسم المجموعة');
+    const subject = document.getElementById('gSubject').value.trim();
+    const schedule = document.getElementById('gSchedule').value.trim();
+    const sessionPrice = Number(document.getElementById('gSessionPrice').value) || 0;
+    const monthlyPrice = Number(document.getElementById('gMonthlyPrice').value) || 0;
+    const bookPrice = Number(document.getElementById('gBookPrice').value) || 0;
+    const editId = document.getElementById('editGroupId').value;
+    pushChange(dataObj => {
+        if (!dataObj.groups) dataObj.groups = [];
+        if (editId) {
+            const g = dataObj.groups.find(x => String(x.id) === String(editId));
+            if (g) { g.name = name; g.subject = subject; g.schedule = schedule; g.sessionPrice = sessionPrice; g.monthlyPrice = monthlyPrice; g.bookPrice = bookPrice; }
+        } else {
+            dataObj.groups.push({ id: Date.now(), name, subject, schedule, sessionPrice, monthlyPrice, bookPrice, stageId: null, paymentType: 'per_session' });
+        }
+    });
+    closeSheet('groupSheet');
+    showToast('تم حفظ المجموعة ✅');
+}
+
+/* ===== التقارير المطبوعة ===== */
+function reportEsc(s) { return esc(s); }
+function openPrintWindow(title, bodyHtml) {
+    const win = window.open('', '_blank');
+    if (!win) { showToast('افتح النافذة المنبثقة من إعدادات المتصفح ثم حاول مرة أخرى'); return; }
+    win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>${title}</title>
+    <style>
+        body { font-family: Tahoma, 'Segoe UI', Arial, sans-serif; padding: 18px; color: #000; background:#fff; }
+        h1 { text-align:center; font-size:19px; margin-bottom:4px; }
+        h2 { text-align:center; font-size:14px; color:#333; margin-top:0; font-weight:600; }
+        table { width:100%; border-collapse:collapse; margin-top:14px; }
+        th, td { border:1px solid #000; padding:7px; text-align:center; font-size:12.5px; }
+        th { background:#e6e6e6; }
+        .summary { display:flex; gap:10px; justify-content:center; margin:16px 0; flex-wrap:wrap; }
+        .card { border:1px solid #000; border-radius:0; padding:10px 16px; text-align:center; font-weight:700; font-size:12.5px; }
+        .card b { display:block; font-size:19px; margin-top:4px; }
+        footer { text-align:center; margin-top:20px; font-size:11px; color:#555; }
+    </style></head><body>${bodyHtml}
+    <footer>تم إنشاء هذا التقرير من تطبيق EduManager للموبايل بتاريخ ${new Date().toLocaleDateString('ar-EG')}</footer>
+    <script>setTimeout(() => window.print(), 400);</` + `script>
+    </body></html>`);
+    win.document.close();
+}
+function printStudentReport(studentId) {
+    const s = (cloudData.students || []).find(x => String(x.id) === String(studentId));
+    if (!s) return;
+    const attRecords = (cloudData.attendance || []).filter(a => String(a.groupId) === String(s.groupId));
+    let present = 0, absent = 0, late = 0, makeup = 0;
+    attRecords.forEach(a => { const r = (a.records || []).find(r => String(r.studentId) === String(s.id)); if (r) { if (r.status === 'present') present++; else if (r.status === 'absent') absent++; else if (r.status === 'late') late++; else if (r.status === 'makeup') makeup++; } });
+    const exams = (cloudData.exams || []).filter(e => String(e.groupId) === String(s.groupId));
+    const examsRows = exams.length ? exams.map(e => `<tr><td>${reportEsc(e.name)}</td><td>${reportEsc(e.date || '-')}</td><td>${e.grades && e.grades[s.id] !== undefined ? reportEsc(e.grades[s.id]) : '-'}</td><td>${reportEsc(e.total ?? '-')}</td></tr>`).join('') : '<tr><td colspan="4">لا توجد امتحانات</td></tr>';
+    const payments = (cloudData.payments || []).filter(p => String(p.studentId) === String(s.id));
+    const totalPaid = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+    const paymentsRows = payments.length ? payments.map(p => `<tr><td>${reportEsc(p.date || '-')}</td><td>${p.amount} ج.م</td><td>${p.type === 'book' ? 'ملزمة' : p.type === 'monthly' ? 'شهري' : 'حصة'}</td></tr>`).join('') : '<tr><td colspan="3">لا توجد مدفوعات</td></tr>';
+    const body = `
+        <h1>${reportEsc(cloudData.settings?.centerName || 'التقرير الشامل للطالب')}</h1>
+        <h2>${reportEsc(s.name)} — ${reportEsc(groupName(s.groupId))}</h2>
+        <div class="summary">
+            <div class="card">حاضر<b>${present}</b></div>
+            <div class="card">غائب<b>${absent}</b></div>
+            <div class="card">متأخر<b>${late}</b></div>
+            <div class="card">تعويض<b>${makeup}</b></div>
+        </div>
+        <table><thead><tr><th>الامتحان</th><th>التاريخ</th><th>الدرجة</th><th>من</th></tr></thead><tbody>${examsRows}</tbody></table>
+        <table><thead><tr><th>التاريخ</th><th>المبلغ</th><th>النوع</th></tr></thead><tbody>${paymentsRows}</tbody></table>
+        <div class="summary"><div class="card">إجمالي المدفوع<b>${totalPaid} ج.م</b></div></div>
+    `;
+    openPrintWindow('تقرير ' + s.name, body);
+}
+function printGroupReport(groupId) {
+    const g = (cloudData.groups || []).find(x => String(x.id) === String(groupId));
+    if (!g) return;
+    const students = activeStudents().filter(s => String(s.groupId) === String(groupId));
+    const attRecords = (cloudData.attendance || []).filter(a => String(a.groupId) === String(groupId));
+    const rows = students.map((s, i) => {
+        let present = 0, absent = 0;
+        attRecords.forEach(a => { const r = (a.records || []).find(r => String(r.studentId) === String(s.id)); if (r) { if (r.status === 'present') present++; else if (r.status === 'absent') absent++; } });
+        return `<tr><td>${i + 1}</td><td>${reportEsc(s.name)}</td><td>${reportEsc(s.phone || '-')}</td><td>${reportEsc(s.parentPhone || '-')}</td><td>${present}</td><td>${absent}</td></tr>`;
+    }).join('');
+    const body = `
+        <h1>${reportEsc(cloudData.settings?.centerName || 'تقرير المجموعة')}</h1>
+        <h2>مجموعة: ${reportEsc(g.name)} — عدد الطلاب: ${students.length}</h2>
+        <table><thead><tr><th>#</th><th>اسم الطالب</th><th>هاتف الطالب</th><th>هاتف ولي الأمر</th><th>حاضر</th><th>غائب</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="6">لا يوجد طلاب</td></tr>'}</tbody></table>
+    `;
+    openPrintWindow('تقرير ' + g.name, body);
 }
 
 /* ===== الطلاب ===== */
@@ -341,11 +586,15 @@ function renderStudentsTab() {
                         <span class="badge">${esc(groupName(s.groupId))}</span>
                         <span class="badge ${s.status === 'suspended' ? 'warn' : ''}">${s.status === 'active' ? 'نشط' : s.status === 'suspended' ? 'موقوف' : s.status}</span>
                         <span>📞 ${esc(s.phone || '-')}</span>
+                        ${s.bookOrder === 'yes' ? `<span class="badge ${s.bookPaid === 'yes' ? '' : 'danger'}">📚 ${s.bookPaid === 'yes' ? 'دفع الملزمة' : 'لم يدفع الملزمة'}</span>` : ''}
                     </div>
                 </div>
                 <div class="actions-row">
+                    <button class="icon-btn" onclick="printStudentReport('${s.id}')">🖨️</button>
+                    <button class="icon-btn ${s.bookPaid === 'yes' ? '' : 'danger'}" onclick="toggleBookPaid('${s.id}')" title="دفع الملزمة">📚</button>
                     <button class="icon-btn" onclick="openStudentSheet('${s.id}')">✏️</button>
                     <button class="icon-btn danger" onclick="toggleStudentStatus('${s.id}')">${s.status === 'active' ? '⏸️' : '▶️'}</button>
+                    <button class="icon-btn danger" onclick="deleteStudentPermanently('${s.id}','${esc(s.name).replace(/'/g, "&#39;")}')">🗑️</button>
                 </div>
             </div>
         </div>
@@ -394,11 +643,43 @@ function saveStudent() {
     closeSheet('studentSheet');
     showToast('تم الحفظ ✅');
 }
+function toggleBookPaid(id) {
+    pushChange(dataObj => {
+        const s = dataObj.students.find(x => String(x.id) === String(id));
+        if (!s) return;
+        const group = (dataObj.groups || []).find(g => String(g.id) === String(s.groupId));
+        const price = Number(s.bookPrice) || Number(group?.bookPrice) || 0;
+        const willPay = s.bookPaid !== 'yes';
+        s.bookOrder = 'yes';
+        s.bookPaid = willPay ? 'yes' : 'no';
+        s.bookPrice = price;
+        if (!dataObj.payments) dataObj.payments = [];
+        const existing = dataObj.payments.find(p => String(p.studentId) === String(s.id) && p.source === 'student-book-paid');
+        if (willPay) {
+            if (existing) { existing.amount = price; }
+            else dataObj.payments.push({ id: Date.now(), studentId: s.id, amount: price, date: today(), notes: `ملزمة: ${s.name}`, type: 'book', status: 'paid', source: 'student-book-paid' });
+        } else if (existing) {
+            dataObj.payments = dataObj.payments.filter(p => p !== existing);
+        }
+    });
+    showToast('تم تحديث حالة الملزمة ✅');
+}
 function toggleStudentStatus(id) {
     pushChange(dataObj => {
         const s = dataObj.students.find(x => String(x.id) === String(id));
         if (s) s.status = s.status === 'active' ? 'suspended' : 'active';
     });
+}
+function deleteStudentPermanently(id, name) {
+    if (!confirm(`هل أنت متأكد من حذف الطالب "${name}" نهائيًا؟ سيتم حذف كل سجلات حضوره ومدفوعاته ودرجاته أيضًا. لا يمكن التراجع عن هذا الإجراء.`)) return;
+    pushChange(dataObj => {
+        dataObj.students = (dataObj.students || []).filter(x => String(x.id) !== String(id));
+        (dataObj.attendance || []).forEach(a => { a.records = (a.records || []).filter(r => String(r.studentId) !== String(id)); });
+        dataObj.payments = (dataObj.payments || []).filter(p => String(p.studentId) !== String(id));
+        (dataObj.exams || []).forEach(e => { if (e.grades) delete e.grades[id]; });
+        (dataObj.homework || []).forEach(h => { if (h.grades) delete h.grades[id]; if (h.students) h.students = h.students.filter(sid => String(sid) !== String(id)); });
+    });
+    showToast('تم حذف الطالب نهائيًا');
 }
 
 /* ===== الحضور ===== */
@@ -441,6 +722,120 @@ function setAttendance(studentId, status) {
     });
 }
 
+/* ===== الامتحانات والواجبات ===== */
+function renderActivitiesTab() {
+    const bar = document.getElementById('subtabsBar');
+    bar.style.display = 'flex';
+    bar.innerHTML = `
+        <button class="subtab ${activitiesKindFilter === 'exam' ? 'active' : ''}" onclick="setActivitiesKind('exam')">📝 امتحانات</button>
+        <button class="subtab ${activitiesKindFilter === 'homework' ? 'active' : ''}" onclick="setActivitiesKind('homework')">📓 واجبات</button>
+        <select id="actGroupFilter" class="subtab" style="flex:1; border:none;" onchange="onActivitiesGroupChange()"></select>
+    `;
+    fillGroupSelect(document.getElementById('actGroupFilter'), true);
+    if (activitiesGroupId) document.getElementById('actGroupFilter').value = activitiesGroupId;
+    const content = document.getElementById('content');
+    const list = activitiesKindFilter === 'exam' ? (cloudData.exams || []) : (cloudData.homework || []);
+    let filtered = list.filter(a => !activitiesGroupId || String(a.groupId) === String(activitiesGroupId));
+    filtered = filtered.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    if (!filtered.length) { content.innerHTML = `<div class="empty">لا توجد ${activitiesKindFilter === 'exam' ? 'امتحانات' : 'واجبات'} مسجلة${activitiesGroupId ? ' لهذه المجموعة' : ''}</div>`; return; }
+    content.innerHTML = filtered.map(a => {
+        const gradesCount = Object.keys(a.grades || {}).length;
+        const totalStudents = activitiesKindFilter === 'homework' ? (a.students || []).length : activeStudents().filter(s => String(s.groupId) === String(a.groupId)).length;
+        return `<div class="card">
+            <div class="card-row">
+                <div>
+                    <div class="card-title">${esc(a.name)}</div>
+                    <div class="card-sub">
+                        <span class="badge">${esc(groupName(a.groupId))}</span>
+                        <span>${esc(a.date || '-')}</span>
+                        <span class="badge ${gradesCount < totalStudents ? 'warn' : ''}">${gradesCount}/${totalStudents} درجة</span>
+                        ${activitiesKindFilter === 'exam' ? `<span class="badge">من ${esc(a.total ?? '-')}</span>` : ''}
+                    </div>
+                </div>
+                <button class="icon-btn" onclick="openGradesSheet('${activitiesKindFilter}','${a.id}')">✏️</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+function setActivitiesKind(kind) { activitiesKindFilter = kind; renderActivitiesTab(); }
+function onActivitiesGroupChange() { activitiesGroupId = document.getElementById('actGroupFilter').value; renderActivitiesTab(); }
+
+function openActivitySheet() {
+    fillGroupSelect(document.getElementById('actGroup'), false);
+    if (activitiesGroupId) document.getElementById('actGroup').value = activitiesGroupId;
+    document.getElementById('actKind').value = activitiesKindFilter === 'homework' ? 'homework' : 'exam_class';
+    document.getElementById('actName').value = '';
+    document.getElementById('actDate').value = today();
+    document.getElementById('actTotal').value = '';
+    document.getElementById('actDesc').value = '';
+    onActKindChange();
+    document.getElementById('activitySheet').classList.add('open');
+}
+function onActKindChange() {
+    const kind = document.getElementById('actKind').value;
+    document.getElementById('actTotalField').style.display = kind === 'homework' ? 'none' : 'block';
+    document.getElementById('actDescField').style.display = kind === 'homework' ? 'block' : 'none';
+}
+function saveActivity() {
+    const kind = document.getElementById('actKind').value;
+    const name = document.getElementById('actName').value.trim();
+    const groupId = document.getElementById('actGroup').value;
+    const date = document.getElementById('actDate').value || today();
+    if (!name) return showToast('اكتب اسم النشاط');
+    if (!groupId) return showToast('اختر المجموعة');
+    if (kind === 'homework') {
+        pushChange(dataObj => {
+            if (!dataObj.homework) dataObj.homework = [];
+            const groupStudents = (dataObj.students || []).filter(s => s.status !== 'deleted' && String(s.groupId) === String(groupId)).map(s => s.id);
+            const desc = document.getElementById('actDesc').value.trim();
+            dataObj.homework.push({ id: Date.now(), name, groupId: isNaN(groupId) ? groupId : Number(groupId), date, desc, students: groupStudents, grades: {} });
+        });
+    } else {
+        const total = Number(document.getElementById('actTotal').value) || 0;
+        pushChange(dataObj => {
+            if (!dataObj.exams) dataObj.exams = [];
+            dataObj.exams.push({ id: Date.now(), name, groupId: isNaN(groupId) ? groupId : Number(groupId), type: kind === 'exam_collective' ? 'collective' : 'class', date, total, grades: {} });
+        });
+    }
+    closeSheet('activitySheet');
+    activitiesKindFilter = kind === 'homework' ? 'homework' : 'exam';
+    showToast('تمت إضافة النشاط ✅');
+}
+
+function openGradesSheet(kind, activityId) {
+    const list = kind === 'exam' ? (cloudData.exams || []) : (cloudData.homework || []);
+    const activity = list.find(a => String(a.id) === String(activityId));
+    if (!activity) return;
+    document.getElementById('gradesSheetTitle').textContent = activity.name;
+    const studentIds = kind === 'homework' ? (activity.students || []) : activeStudents().filter(s => String(s.groupId) === String(activity.groupId)).map(s => s.id);
+    const students = studentIds.map(id => (cloudData.students || []).find(s => String(s.id) === String(id))).filter(Boolean);
+    const gradesList = document.getElementById('gradesList');
+    if (!students.length) { gradesList.innerHTML = '<div class="empty">لا يوجد طلاب مرتبطون بهذا النشاط</div>'; }
+    else {
+        gradesList.innerHTML = students.map(s => {
+            const current = activity.grades && activity.grades[s.id] !== undefined ? activity.grades[s.id] : '';
+            return `<div class="field" style="display:flex; align-items:center; gap:8px;">
+                <label style="flex:1; margin:0;">${esc(s.name)}</label>
+                <input type="text" inputmode="decimal" style="width:90px;" id="grade_${kind}_${activityId}_${s.id}" value="${esc(current)}" placeholder="${kind === 'exam' ? 'الدرجة' : 'الحالة'}" onblur="saveGrade('${kind}','${activityId}','${s.id}')">
+            </div>`;
+        }).join('');
+    }
+    document.getElementById('gradesSheet').classList.add('open');
+}
+function saveGrade(kind, activityId, studentId) {
+    const input = document.getElementById(`grade_${kind}_${activityId}_${studentId}`);
+    const value = input.value.trim();
+    pushChange(dataObj => {
+        const list = kind === 'exam' ? dataObj.exams : dataObj.homework;
+        const activity = (list || []).find(a => String(a.id) === String(activityId));
+        if (!activity) return;
+        if (!activity.grades) activity.grades = {};
+        if (value === '') delete activity.grades[studentId];
+        else activity.grades[studentId] = kind === 'exam' ? (isNaN(value) ? value : Number(value)) : value;
+    });
+    showToast('تم حفظ الدرجة ✅');
+}
+
 /* ===== الخزينة ===== */
 function renderTreasuryTab() {
     document.getElementById('subtabsBar').style.display = 'none';
@@ -464,9 +859,15 @@ function renderTreasuryTab() {
                 <div><div class="card-title">${esc(student?.name || 'طالب غير معروف')}</div>
                 <div class="card-sub"><span class="badge">${typeLabel(p.type)}</span><span>${esc(p.date || '-')}</span></div></div>
                 <div style="font-weight:800; color:#00b894;">${p.amount} ج.م</div>
+                <button class="icon-btn danger" onclick="deletePayment('${p.id}')">🗑️</button>
             </div>
         </div>`;
     }).join('');
+}
+function deletePayment(paymentId) {
+    if (!confirm('هل تريد حذف هذه الدفعة؟')) return;
+    pushChange(dataObj => { dataObj.payments = (dataObj.payments || []).filter(p => String(p.id) !== String(paymentId)); });
+    showToast('تم حذف الدفعة');
 }
 function openPaymentSheet() {
     const select = document.getElementById('pStudent');
